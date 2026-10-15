@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Classes para o modo espelho do Prompter (RF06) que usaremos depois */
+.mirror-mode {
+  transform: scaleX(-1) scaleY(-1);
+}
