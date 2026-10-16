@@ -10,8 +10,6 @@ import {
   Minimize,
   Type,
   Eye,
-  FileText,
-  Check,
   ChevronDown,
 } from "lucide-react";
 
@@ -70,9 +68,6 @@ export default function PrompterView() {
   const [speed, setSpeed] = useState(3); // 1 a 10
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // [RF08] Alto Contraste: Fundo escuro (black ou zinc-950) e texto claro
-  const [contrastTheme, setContrastTheme] = useState("black"); // "black" | "zinc-950"
-
   // [RF06] Espelhamento de eixos (CSS scale-x-[-1] scale-y-[-1])
   const [isMirrorX, setIsMirrorX] = useState(false);
   const [isMirrorY, setIsMirrorY] = useState(false);
@@ -80,13 +75,10 @@ export default function PrompterView() {
   // [RF09] Marcador de Leitura: Linha guia horizontal amarela fixa centralizada
   const [showGuideLine, setShowGuideLine] = useState(true);
 
-  // Estados adicionais de controle e usabilidade
+  // Estados de controle e usabilidade
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [textAlignment, setTextAlignment] = useState("center"); // 'center' | 'left'
-  const [scriptContent, setScriptContent] = useState(DEFAULT_SCRIPT);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [tempScript, setTempScript] = useState(DEFAULT_SCRIPT);
   const [showControls, setShowControls] = useState(true);
+  const scriptContent = DEFAULT_SCRIPT;
 
   const scrollContainerRef = useRef(null);
   const prompterRootRef = useRef(null);
@@ -183,9 +175,6 @@ export default function PrompterView() {
   // Atalhos de Teclado Globais (Espaço = Play/Pause, Cima/Baixo = Velocidade, +/- = Zoom, M = Mirror)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignora se estiver digitando no modal de edição
-      if (isEditModalOpen) return;
-
       if (e.code === "Space") {
         e.preventDefault();
         setIsPlaying((prev) => !prev);
@@ -215,7 +204,7 @@ export default function PrompterView() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEditModalOpen, toggleFullMirror, handleResetScroll]);
+  }, [toggleFullMirror, handleResetScroll]);
 
   // Classes do modo espelho (RF06: scale-x-[-1] scale-y-[-1])
   const getMirrorClasses = () => {
@@ -230,13 +219,10 @@ export default function PrompterView() {
     return classes.join(" ");
   };
 
-  // Classe de Fundo do Alto Contraste (RF08)
-  const bgClass = contrastTheme === "black" ? "bg-black" : "bg-zinc-950";
-
   return (
     <div
       ref={prompterRootRef}
-      className={`relative w-full h-screen overflow-hidden ${bgClass} text-white select-none transition-colors duration-200 font-sans`}
+      className="relative w-full h-screen overflow-hidden bg-black text-white select-none font-sans"
     >
       {/* ======================================================== */}
       {/* [RF07] BARRA SUPERIOR FIXA DE CONTROLES                   */}
@@ -399,30 +385,8 @@ export default function PrompterView() {
             </div>
           </div>
 
-          {/* Grupo de Utilidades (Alto Contraste, Guia, Editar, Tela Cheia) */}
+          {/* Grupo de Utilidades (Guia de Leitura e Tela Cheia) */}
           <div className="flex items-center gap-2">
-            {/* [RF08] Alternar Alto Contraste: Fundo Black vs Zinc-950 */}
-            <button
-              onClick={() =>
-                setContrastTheme((prev) => (prev === "black" ? "zinc-950" : "black"))
-              }
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors flex items-center gap-1.5 ${
-                contrastTheme === "black"
-                  ? "bg-black text-white border-zinc-700"
-                  : "bg-zinc-900 text-zinc-300 border-zinc-800 hover:text-white"
-              }`}
-              title="Alternar entre Preto Absoluto (#000) e Zinc-950 [RF08]"
-            >
-              <div
-                className={`w-2.5 h-2.5 rounded-full border border-zinc-600 ${
-                  contrastTheme === "black" ? "bg-black ring-1 ring-white" : "bg-zinc-950"
-                }`}
-              />
-              <span className="hidden lg:inline">
-                {contrastTheme === "black" ? "Preto Puro" : "Zinc 950"}
-              </span>
-            </button>
-
             {/* [RF09] Alternar Marcador de Leitura */}
             <button
               onClick={() => setShowGuideLine((prev) => !prev)}
@@ -434,31 +398,6 @@ export default function PrompterView() {
               title="Exibir/Ocultar Marcador de Leitura Amarelo [RF09]"
             >
               <Eye size={16} />
-            </button>
-
-            {/* Alinhamento de Texto */}
-            <button
-              onClick={() =>
-                setTextAlignment((prev) => (prev === "center" ? "left" : "center"))
-              }
-              className="p-1.5 rounded-md text-xs border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-              title={`Alinhamento: ${textAlignment === "center" ? "Centralizado" : "À Esquerda"}`}
-            >
-              <span className="font-bold text-[11px]">
-                {textAlignment === "center" ? "CENTRO" : "ESQ"}
-              </span>
-            </button>
-
-            {/* Modal Editar Roteiro */}
-            <button
-              onClick={() => {
-                setTempScript(scriptContent);
-                setIsEditModalOpen(true);
-              }}
-              className="p-1.5 rounded-md text-xs border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-              title="Editar texto do roteiro"
-            >
-              <FileText size={16} />
             </button>
 
             {/* Tela Cheia */}
@@ -545,9 +484,7 @@ export default function PrompterView() {
           className={`max-w-5xl mx-auto px-6 sm:px-12 md:px-16 transition-transform duration-300 origin-center ${getMirrorClasses()}`}
         >
           <div
-            className={`font-semibold tracking-wide leading-relaxed ${
-              textAlignment === "center" ? "text-center" : "text-left"
-            } text-white selection:bg-yellow-400 selection:text-black`}
+            className="font-semibold tracking-wide leading-relaxed text-center text-white selection:bg-yellow-400 selection:text-black"
             style={{
               fontSize: `${fontSize}px`,
               lineHeight: 1.45,
@@ -590,68 +527,6 @@ export default function PrompterView() {
         {/* Espaçamento inferior para permitir a leitura do texto até a última linha na guia */}
         <div className="h-[52vh]" aria-hidden="true" />
       </main>
-
-      {/* ======================================================== */}
-      {/* MODAL PARA EDIÇÃO DO ROTEIRO                             */}
-      {/* ======================================================== */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-6 flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <FileText size={18} className="text-amber-400" />
-                Editar Roteiro do Teleprompter
-              </h2>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-zinc-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-zinc-400 mt-2">
-              Altere ou cole o texto que será exibido no Prompter. Utilize linhas em branco entre os parágrafos.
-            </p>
-
-            <textarea
-              value={tempScript}
-              onChange={(e) => setTempScript(e.target.value)}
-              className="w-full flex-1 min-h-[300px] mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-100 font-mono text-sm focus:outline-none focus:border-amber-400 resize-none"
-              placeholder="Digite ou cole seu roteiro aqui..."
-            />
-
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-800">
-              <button
-                onClick={() => setTempScript(DEFAULT_SCRIPT)}
-                className="text-xs text-zinc-400 hover:text-amber-400 transition-colors"
-              >
-                Restaurar texto padrão da Globo
-              </button>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    setScriptContent(tempScript);
-                    setIsEditModalOpen(false);
-                    handleResetScroll();
-                  }}
-                  className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-black rounded-lg text-xs font-bold flex items-center gap-1.5"
-                >
-                  <Check size={16} />
-                  Salvar e Aplicar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Barra de atalhos rápidos no rodapé discreto */}
       <footer className="fixed bottom-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none opacity-40 hover:opacity-100 transition-opacity">
