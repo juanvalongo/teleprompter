@@ -1,33 +1,46 @@
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import PrompterView from "./components/PrompterView.jsx";
+import TeleprompterView from "./components/TeleprompterView"; // Certifique-se de que o arquivo está nesta pasta
 
-// Painel Administrativo temporário
+// Componente temporário para o painel de administração
 const AdminPanel = () => (
-  <div className="p-8 max-w-4xl mx-auto">
-    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-      <h1 className="text-2xl font-bold">Painel Administrativo</h1>
-      <Link
-        to="/prompter"
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors"
-      >
-        Abrir Teleprompter →
-      </Link>
-    </div>
-    <p className="text-gray-600 mb-4">Aqui entrará o Editor TipTap e a lista de roteiros.</p>
+  <div className="p-8 bg-zinc-950 min-h-screen text-zinc-200">
+    <h1 className="text-3xl font-bold mb-6 text-white">
+      Painel Administrativo
+    </h1>
+    <p className="mb-8 text-zinc-400">
+      Esta tela receberá o CRUD e o Editor TipTap em breve.
+    </p>
+
+    <Link
+      to="/prompter"
+      className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold hover:bg-yellow-400 transition-colors"
+    >
+      Abrir Tela do Teleprompter
+    </Link>
   </div>
 );
 
-function App() {
+// Rota do Prompter passando as funções base exigidas pelo componente
+const PrompterRoute = () => {
+  return (
+    <TeleprompterView
+      script={{}} // Passamos vazio para ele usar o texto de demonstração padrão
+      onEndPresentation={() => (window.location.href = "/admin")}
+      onOpenSecondScreen={() =>
+        alert("Modo 2ª tela será implementado em breve!")
+      }
+    />
+  );
+};
+
+export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Renderiza o PrompterView na tela principal para teste imediato e na rota dedicada */}
-        <Route path="/" element={<PrompterView />} />
-        <Route path="/prompter" element={<PrompterView />} />
+        <Route path="/" element={<AdminPanel />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/prompter" element={<PrompterRoute />} />
       </Routes>
     </Router>
   );
 }
-
-export default App;
