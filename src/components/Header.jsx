@@ -53,8 +53,8 @@ export const Header = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#12151D]/95 backdrop-blur-xl border-b border-[#282E3E] shadow-2xl select-none px-3 sm:px-6">
-      <div className="max-w-7xl mx-auto flex items-center justify-between h-15 gap-2 sm:gap-4">
+    <header className="sticky top-0 z-40 w-full bg-[#12151D]/95 backdrop-blur-xl border-b border-[#282E3E] shadow-2xl select-none px-3 sm:px-6 py-2">
+      <div className="max-w-7xl mx-auto flex items-center justify-between min-h-[56px] gap-2 sm:gap-4">
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => onNavigate('teleprompter')}
@@ -67,7 +67,7 @@ export const Header = ({
               <span className="text-sm sm:text-base font-extrabold tracking-tight text-[#F8FAFC]">
                 ORATO
               </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#1F2432] text-[#94A3B8] font-mono tracking-wider border border-[#2D3546] hidden sm:inline">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#1F2432] text-[#94A3B8] font-mono tracking-wider border border-[#2D3546] hidden sm:inline">
                 PRO
               </span>
             </div>
@@ -112,7 +112,7 @@ export const Header = ({
           >
             <Files className="w-3.5 h-3.5 shrink-0" />
             <span>Roteiros</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#0C0E14] text-[#94A3B8] font-mono">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0C0E14] text-[#94A3B8] font-mono">
               {scriptsCount}
             </span>
           </button>

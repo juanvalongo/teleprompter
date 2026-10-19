@@ -46,7 +46,7 @@ export const ScriptsListView = ({
 
   return (
     <div className="flex flex-col w-full max-w-7xl mx-auto space-y-6 pb-16">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4.5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[18px]">
         {featuredScript && (
           <div className="lg:col-span-2 p-6 rounded-3xl bg-gradient-to-br from-[#181C26] via-[#151821] to-[#12151D] border border-[#282E3E] shadow-2xl relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
