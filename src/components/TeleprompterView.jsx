@@ -18,6 +18,7 @@ import {
   ArrowUp,
   Radio,
 } from "lucide-react";
+import { useTeleprompterSync } from "../hooks/useTeleprompterSync";
 
 export default function TeleprompterView({
   script = {},
@@ -31,6 +32,32 @@ export default function TeleprompterView({
   const [latencyMs, setLatencyMs] = useState(12);
   const [speechAccuracy, setSpeechAccuracy] = useState("99.8%");
   const [improviseState, setImproviseState] = useState(false);
+
+  const scriptId = script.id || "script-demo-123";
+  const sessionId = "sessao-ao-vivo-1";
+
+  // ==========================================
+  // SINCRONIZAÇÃO SOCKET.IO (RECEPTOR)
+  // ==========================================
+  const { isConnected: isSocketConnected } = useTeleprompterSync({
+    scriptId,
+    sessionId,
+    role: "receiver",
+    onCommandReceived: (event) => {
+      const { command, speed } = event;
+
+      if (command === "play") {
+        setIsPlaying(true);
+        setImproviseState(false);
+      }
+      if (command === "pause") {
+        setIsPlaying(false);
+      }
+      if (command === "set-speed" && speed) {
+        setWpm(speed);
+      }
+    },
+  });
 
   const viewportRef = useRef(null);
 
