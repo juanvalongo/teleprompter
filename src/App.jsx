@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
-import { Sidebar } from './components/Sidebar';
 import { TeleprompterView } from './components/TeleprompterView';
 import { ScriptEditorView } from './components/ScriptEditorView';
 import { ScriptsListView } from './components/ScriptsListView';
@@ -20,9 +19,6 @@ import { Check, Trash2, Edit3, Plus, AlertCircle } from 'lucide-react';
 export default function App() {
   const [scripts, setScripts] = useState([]);
   const [activeScript, setActiveScript] = useState(null);
-  const [isLoadingScripts, setIsLoadingScripts] = useState(true);
-  const [apiError, setApiError] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [activeScreen, setActiveScreen] = useState(() => {
     const hash = window.location.hash.replace('#', '').toLowerCase();
@@ -74,26 +70,6 @@ export default function App() {
     }, 2800);
   }, []);
 
-  const loadScriptsFromBackend = useCallback(async () => {
-    setIsLoadingScripts(true);
-    setApiError(null);
-    try {
-      const data = await fetchScripts();
-      setScripts(data);
-      setActiveScript((prev) => {
-        if (prev) {
-          const updated = data.find((s) => s.id === prev.id);
-          if (updated) return updated;
-        }
-        return data[0] || null;
-      });
-    } catch (err) {
-      setApiError(err.message || 'Falha ao conectar em /api/scripts');
-    } finally {
-      setIsLoadingScripts(false);
-    }
-  }, []);
-
   useEffect(() => {
     let active = true;
     fetchScripts()
@@ -103,11 +79,7 @@ export default function App() {
         setActiveScript((prev) => prev || data[0] || null);
       })
       .catch((err) => {
-        if (!active) return;
-        setApiError(err.message || 'Falha ao conectar em /api/scripts');
-      })
-      .finally(() => {
-        if (active) setIsLoadingScripts(false);
+        console.warn(err);
       });
     return () => {
       active = false;
@@ -239,17 +211,10 @@ export default function App() {
     try {
       const created = await createScriptApi({
         title: 'Novo Roteiro de Estúdio',
-        content: '<p></p>',
+        content: `<p class="mb-4"><strong>Insira aqui a fala de abertura do apresentador.</strong> O algoritmo do Orato Estúdio acompanhará a sua fala em tempo real.</p><p>Digite os parágrafos subsequentes com clareza. Use o botão de destaque para termos chave.</p>`,
       });
-      const draft = {
-        ...created,
-        content: '',
-        plainText: '',
-        wordCount: 0,
-        estimatedMinutes: 1,
-      };
-      setScripts((prev) => [draft, ...prev.filter((s) => s.id !== draft.id)]);
-      setActiveScript(draft);
+      setScripts((prev) => [created, ...prev.filter((s) => s.id !== created.id)]);
+      setActiveScript(created);
       navigateTo('editor');
       showToast('Novo roteiro criado no editor', 'plus');
     } catch (err) {
@@ -270,100 +235,69 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0C0E14] text-[#F8FAFC] font-sans antialiased selection:bg-[#EF4444] selection:text-[#FFFFFF]">
-      {isSidebarOpen && (
-        <Sidebar
-          activeScreen={activeScreen}
-          onNavigate={navigateTo}
-          onNewScript={handleCreateNewScript}
-          onClose={() => setIsSidebarOpen(false)}
-          scripts={scripts}
-          activeScriptId={activeScript?.id}
-          onSelectScriptToPresent={handleSelectScriptToPresent}
-          onEditScript={handleEditScript}
-          onDeleteScript={handleDeleteScript}
-          onRefreshScripts={loadScriptsFromBackend}
-          isLoading={isLoadingScripts}
-          apiError={apiError}
-        />
-      )}
+      <Header
+        activeScreen={activeScreen}
+        onNavigate={navigateTo}
+        onNewScript={handleCreateNewScript}
+        onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onOpenScreenGallery={() => setIsScreenGalleryOpen(true)}
+        studioConfig={studioConfig}
+        scriptsCount={scripts.length}
+      />
 
-      <div className={`transition-all duration-300 ${isSidebarOpen ? 'lg:pl-72' : ''}`}>
-        <Header
-          activeScreen={activeScreen}
-          onNavigate={navigateTo}
-          onNewScript={handleCreateNewScript}
-          onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
-          onOpenShortcuts={() => setIsShortcutsOpen(true)}
-          onOpenScreenGallery={() => setIsScreenGalleryOpen(true)}
-          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-          isSidebarOpen={isSidebarOpen}
-          studioConfig={studioConfig}
-          scriptsCount={scripts.length}
-        />
+      <main className="relative min-h-[calc(100vh-4rem)] w-full max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {activeScreen === 'teleprompter' && (
+          <TeleprompterView
+            key={activeScript?.id || 'empty'}
+            script={activeScript}
+            onEndPresentation={() => navigateTo('scripts')}
+            onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
+          />
+        )}
 
-        <main className="relative min-h-[calc(100vh-4rem)] w-full max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          {activeScreen === 'teleprompter' && (
-            <TeleprompterView
-              key={activeScript?.id || 'empty'}
-              script={activeScript}
-              onEndPresentation={() => navigateTo('scripts')}
-              onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
-              onNewScript={handleCreateNewScript}
-            />
-          )}
+        {activeScreen === 'editor' && (
+          <ScriptEditorView
+            key={activeScript?.id || 'draft'}
+            script={
+              activeScript || {
+                title: 'Novo Roteiro de Estúdio',
+                content: `<p class="mb-4"><strong>Insira aqui a fala de abertura do apresentador.</strong> O algoritmo do Orato Estúdio acompanhará a sua fala em tempo real.</p><p>Digite os parágrafos subsequentes com clareza. Use o botão de destaque para termos chave.</p>`,
+                isNew: true,
+              }
+            }
+            onSave={handleSaveScript}
+            onDelete={handleDeleteScript}
+            onCancel={() => navigateTo('scripts')}
+            onStartPresentation={async (s) => {
+              const saved = await handleSaveScript(s);
+              setActiveScript(saved || s);
+              navigateTo('teleprompter');
+            }}
+          />
+        )}
 
-          {activeScreen === 'editor' && (
-            activeScript ? (
-              <ScriptEditorView
-                key={activeScript.id}
-                script={activeScript}
-                onSave={handleSaveScript}
-                onDelete={handleDeleteScript}
-                onCancel={() => navigateTo('scripts')}
-                onStartPresentation={async (s) => {
-                  const saved = await handleSaveScript(s);
-                  setActiveScript(saved || s);
-                  navigateTo('teleprompter');
-                }}
-              />
-            ) : (
-              <div className="p-12 text-center bg-[#151821] rounded-3xl border border-[#282E3E] space-y-4">
-                <p className="text-sm text-[#94A3B8]">
-                  Nenhum roteiro selecionado para edição.
-                </p>
-                <button
-                  onClick={handleCreateNewScript}
-                  className="px-4 py-2 rounded-xl bg-[#FACC15] text-[#0C0E14] text-xs font-bold hover:bg-[#EAB308]"
-                >
-                  Criar Novo Roteiro
-                </button>
-              </div>
-            )
-          )}
+        {activeScreen === 'scripts' && (
+          <ScriptsListView
+            scripts={scripts}
+            onSelectScriptToPresent={handleSelectScriptToPresent}
+            onEditScript={handleEditScript}
+            onDeleteScript={handleDeleteScript}
+            onNewScript={handleCreateNewScript}
+            showToast={showToast}
+          />
+        )}
 
-          {activeScreen === 'scripts' && (
-            <ScriptsListView
-              scripts={scripts}
-              activeScriptId={activeScript?.id}
-              onSelectScriptToPresent={handleSelectScriptToPresent}
-              onEditScript={handleEditScript}
-              onDeleteScript={handleDeleteScript}
-              onNewScript={handleCreateNewScript}
-              showToast={showToast}
-            />
-          )}
+        {activeScreen === 'monitoring' && <AiMonitoringView />}
 
-          {activeScreen === 'monitoring' && <AiMonitoringView />}
-
-          {activeScreen === 'settings' && (
-            <SettingsView
-              config={studioConfig}
-              onSaveConfig={(newConfig) => setStudioConfig(newConfig)}
-              showToast={showToast}
-            />
-          )}
-        </main>
-      </div>
+        {activeScreen === 'settings' && (
+          <SettingsView
+            config={studioConfig}
+            onSaveConfig={(newConfig) => setStudioConfig(newConfig)}
+            showToast={showToast}
+          />
+        )}
+      </main>
 
       <SecondScreenModal
         isOpen={isSecondScreenOpen}

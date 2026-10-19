@@ -15,17 +15,14 @@ import {
   FastForward,
   ArrowUp,
   Radio,
-  Plus,
-  Files,
 } from 'lucide-react';
 
 export const TeleprompterView = ({
   script,
   onEndPresentation,
   onOpenSecondScreen,
-  onNewScript,
 }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [wpm, setWpm] = useState(140);
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [activeWordIndex, setActiveWordIndex] = useState(0);
@@ -42,10 +39,25 @@ export const TeleprompterView = ({
       ? script.plainText.split(/\n+/).filter((l) => l.trim().length > 0)
       : [];
 
-    return rawLines.map((line, idx) => ({
+    if (rawLines.length > 0) {
+      return rawLines.map((line, idx) => ({
+        id: idx,
+        text: line.trim(),
+        words: line.trim().split(/\s+/).filter(Boolean),
+      }));
+    }
+
+    const defaultLines = [
+      'Senhoras e senhores, sejam bem-vindos à transmissão de lançamento da plataforma ORATO.',
+      'Neste momento demonstramos a tecnologia de teleprompter inteligente de última geração.',
+      'À medida que você fala, o sistema identifica cada palavra em tempo real e rola o texto automaticamente sem precisar de pedal ou operador manual.',
+      'Se você fizer uma pausa ou improvisar, o algoritmo aguarda pacientemente a sua retomada natural.',
+      'Concluindo a primeira parte da nossa apresentação, agradecemos a presença de toda a equipe técnica e aos estúdios conectados.',
+    ];
+    return defaultLines.map((line, idx) => ({
       id: idx,
-      text: line.trim(),
-      words: line.trim().split(/\s+/).filter(Boolean),
+      text: line,
+      words: line.split(/\s+/).filter(Boolean),
     }));
   }, [script]);
 
@@ -178,7 +190,7 @@ export const TeleprompterView = ({
   };
 
   useEffect(() => {
-    if (!isPlaying || blocks.length === 0) return;
+    if (!isPlaying) return;
 
     const intervalMs = Math.max(120, Math.floor(60000 / wpm));
 
@@ -256,7 +268,7 @@ export const TeleprompterView = ({
               </span>
             </div>
             <h1 className="text-lg sm:text-xl font-bold text-[#F8FAFC] tracking-tight truncate max-w-md sm:max-w-xl">
-              {script?.title || 'Nenhum roteiro selecionado'}
+              {script?.title || 'Apresentação de Abertura'}
             </h1>
           </div>
         </div>
@@ -306,8 +318,7 @@ export const TeleprompterView = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            disabled={blocks.length === 0}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-40 ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
               isPlaying
                 ? 'bg-[#1F2432] text-[#F8FAFC] hover:bg-[#282E3E] border border-[#2D3546]'
                 : 'bg-[#FACC15] text-[#0C0E14] hover:bg-[#EAB308]'
@@ -409,107 +420,81 @@ export const TeleprompterView = ({
           ref={viewportRef}
           className="relative flex-1 overflow-y-auto px-6 sm:px-16 md:px-24 py-40 select-none scroll-smooth bg-[#07080B]"
         >
-          {blocks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-4 z-30 relative">
-              <p className="text-base sm:text-lg text-[#94A3B8] font-medium max-w-md">
-                Nenhum roteiro carregado no momento. Selecione um roteiro na lista ou crie um novo para apresentar.
-              </p>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={onEndPresentation}
-                  className="px-4 py-2 rounded-xl bg-[#1F2432] text-[#F8FAFC] hover:bg-[#282E3E] text-xs font-semibold border border-[#2D3546] flex items-center gap-1.5"
+          <div className="flex flex-col gap-10 max-w-3xl mx-auto">
+            {blocks.map((block, idx) => {
+              const isPast = idx < activeBlockIndex;
+              const isActive = idx === activeBlockIndex;
+
+              const spokenWords = isActive
+                ? block.words.slice(0, activeWordIndex).join(' ')
+                : '';
+              const remainingWords = isActive
+                ? block.words.slice(activeWordIndex).join(' ')
+                : block.text;
+
+              return (
+                <div
+                  key={block.id}
+                  id={`prompter-block-${idx}`}
+                  onClick={() => {
+                    setActiveBlockIndex(idx);
+                    setActiveWordIndex(0);
+                  }}
+                  className={`transition-all duration-500 cursor-pointer ${
+                    isActive
+                      ? 'relative p-6 sm:p-8 rounded-3xl bg-[#151821]/95 border border-[#2D3546] shadow-2xl scale-[1.02]'
+                      : isPast
+                      ? idx === activeBlockIndex - 1
+                        ? 'opacity-35 hover:opacity-55 scale-[0.98]'
+                        : 'opacity-15 hover:opacity-30 scale-[0.96]'
+                      : idx === activeBlockIndex + 1
+                      ? 'opacity-55 hover:opacity-75 scale-[0.99]'
+                      : 'opacity-25 hover:opacity-45 scale-[0.97]'
+                  }`}
                 >
-                  <Files className="w-3.5 h-3.5 text-[#EF4444]" />
-                  <span>Ver Roteiros</span>
-                </button>
-                {onNewScript && (
-                  <button
-                    onClick={onNewScript}
-                    className="px-4 py-2 rounded-xl bg-[#FACC15] text-[#0C0E14] hover:bg-[#EAB308] text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Criar Novo Roteiro</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-10 max-w-3xl mx-auto">
-              {blocks.map((block, idx) => {
-                const isPast = idx < activeBlockIndex;
-                const isActive = idx === activeBlockIndex;
-
-                const spokenWords = isActive
-                  ? block.words.slice(0, activeWordIndex).join(' ')
-                  : '';
-                const remainingWords = isActive
-                  ? block.words.slice(activeWordIndex).join(' ')
-                  : block.text;
-
-                return (
-                  <div
-                    key={block.id}
-                    id={`prompter-block-${idx}`}
-                    onClick={() => {
-                      setActiveBlockIndex(idx);
-                      setActiveWordIndex(0);
-                    }}
-                    className={`transition-all duration-500 cursor-pointer ${
-                      isActive
-                        ? 'relative p-6 sm:p-8 rounded-3xl bg-[#151821]/95 border border-[#2D3546] shadow-2xl scale-[1.02]'
-                        : isPast
-                        ? idx === activeBlockIndex - 1
-                          ? 'opacity-35 hover:opacity-55 scale-[0.98]'
-                          : 'opacity-15 hover:opacity-30 scale-[0.96]'
-                        : idx === activeBlockIndex + 1
-                        ? 'opacity-55 hover:opacity-75 scale-[0.99]'
-                        : 'opacity-25 hover:opacity-45 scale-[0.97]'
-                    }`}
-                  >
-                    {isActive && (
-                      <div className="flex items-center justify-between mb-3 border-b border-[#282E3E] pb-2.5">
-                        <span className="text-[11px] uppercase tracking-wider text-[#EF4444] font-bold flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[#EF4444] animate-ping"></span>
-                          Reconhecimento Ativo · Falando Agora
+                  {isActive && (
+                    <div className="flex items-center justify-between mb-3 border-b border-[#282E3E] pb-2.5">
+                      <span className="text-[11px] uppercase tracking-wider text-[#EF4444] font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#EF4444] animate-ping"></span>
+                        Reconhecimento Ativo · Falando Agora
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[11px] text-[#FACC15] font-bold tabular-nums">
+                          Precisão: {speechAccuracy}
                         </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] text-[#FACC15] font-bold tabular-nums">
-                            Precisão: {speechAccuracy}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-lg bg-[#1F2432] text-[#94A3B8] font-mono border border-[#2D3546]">
-                            {activeWordIndex}/{block.words.length} palavras
-                          </span>
-                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-lg bg-[#1F2432] text-[#94A3B8] font-mono border border-[#2D3546]">
+                          {activeWordIndex}/{block.words.length} palavras
+                        </span>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    <p className="text-[28px] sm:text-[34px] md:text-[38px] leading-snug tracking-tight font-medium text-[#F8FAFC]">
-                      {isActive ? (
-                        <>
-                          {spokenWords && (
-                            <mark className="bg-[#FACC15] text-[#0C0E14] font-bold px-2 py-0.5 rounded-md mx-0.5 shadow-sm inline transition-all duration-150">
-                              "{spokenWords}
-                            </mark>
-                          )}
-                          <span className="text-[#FFFFFF] font-semibold">
-                            {' '}{remainingWords}{spokenWords ? '"' : ''}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-[#94A3B8] hover:text-[#FFFFFF] transition-colors">
-                          {block.text}
+                  <p className="text-[28px] sm:text-[34px] md:text-[38px] leading-snug tracking-tight font-medium text-[#F8FAFC]">
+                    {isActive ? (
+                      <>
+                        {spokenWords && (
+                          <mark className="bg-[#FACC15] text-[#0C0E14] font-bold px-2 py-0.5 rounded-md mx-0.5 shadow-sm inline transition-all duration-150">
+                            "{spokenWords}
+                          </mark>
+                        )}
+                        <span className="text-[#FFFFFF] font-semibold">
+                          {' '}{remainingWords}{spokenWords ? '"' : ''}
                         </span>
-                      )}
-                    </p>
-                  </div>
-                );
-              })}
+                      </>
+                    ) : (
+                      <span className="text-[#94A3B8] hover:text-[#FFFFFF] transition-colors">
+                        {block.text}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
 
-              <div className="h-44 flex items-center justify-center text-xs text-[#64748B] uppercase tracking-widest font-mono">
-                Fim do Roteiro · ORATO Estúdio
-              </div>
+            <div className="h-44 flex items-center justify-center text-xs text-[#64748B] uppercase tracking-widest font-mono">
+              Fim do Roteiro · ORATO Estúdio
             </div>
-          )}
+          </div>
         </div>
 
         <div className="relative z-20 flex flex-col sm:flex-row items-center justify-between px-6 py-3 bg-[#12151D]/95 backdrop-blur-xl border-t border-[#282E3E] gap-3">

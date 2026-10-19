@@ -14,7 +14,6 @@ import {
 
 export const ScriptsListView = ({
   scripts,
-  activeScriptId,
   onSelectScriptToPresent,
   onEditScript,
   onDeleteScript,
@@ -43,12 +42,11 @@ export const ScriptsListView = ({
     (acc, s) => acc + (s.estimatedMinutes || 1),
     0
   );
-  const featuredScript =
-    scripts.find((s) => s.id === activeScriptId) || scripts[0];
+  const featuredScript = scripts[0];
 
   return (
     <div className="flex flex-col w-full max-w-7xl mx-auto space-y-6 pb-16">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4.5">
         {featuredScript && (
           <div className="lg:col-span-2 p-6 rounded-3xl bg-gradient-to-br from-[#181C26] via-[#151821] to-[#12151D] border border-[#282E3E] shadow-2xl relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
@@ -138,9 +136,7 @@ export const ScriptsListView = ({
           </div>
 
           <div className="p-3 rounded-2xl bg-[#181C26] border border-[#282E3E] flex items-center justify-between text-xs">
-            <span className="text-[#94A3B8] font-medium">
-              Reconhecimento de Voz:
-            </span>
+            <span className="text-[#94A3B8] font-medium">Reconhecimento de Voz:</span>
             <span className="font-mono font-bold text-[#EF4444] flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#EF4444] animate-pulse"></span>
               48 kHz · PRONTO
@@ -175,93 +171,71 @@ export const ScriptsListView = ({
           <div className="col-span-full p-12 text-center text-[#64748B] bg-[#151821] rounded-3xl border border-[#282E3E]">
             <FileText className="w-10 h-10 mx-auto mb-2 text-[#64748B]/40" />
             <p className="text-sm">
-              Nenhum roteiro encontrado
+              {searchQuery
+                ? `Nenhum roteiro encontrado para "${searchQuery}"`
+                : 'Nenhum roteiro cadastrado no momento. Clique em "Novo Roteiro" para criar.'}
             </p>
           </div>
         ) : (
-          filteredScripts.map((script) => {
-            const isCurrent = script.id === activeScriptId;
-            return (
-              <div
-                key={script.id}
-                className={`group p-5 rounded-3xl bg-[#151821] border transition-all shadow-xl flex flex-col justify-between ${
-                  isCurrent
-                    ? 'border-[#FACC15]/60 bg-[#181C26]'
-                    : 'border-[#282E3E] hover:border-[#EF4444]/40 hover:bg-[#181C26]'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-[#1F2432] border border-[#2D3546] flex items-center justify-center text-[#EF4444] shrink-0">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      {isCurrent && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FACC15]/20 text-[#FACC15] font-bold uppercase tracking-wider">
-                          Ativo no Prompter
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[11px] px-2 py-0.5 rounded-lg bg-[#12151D] text-[#94A3B8] font-mono border border-[#282E3E]">
-                      ~{script.estimatedMinutes} min
-                    </span>
+          filteredScripts.map((script) => (
+            <div
+              key={script.id}
+              className="group p-5 rounded-3xl bg-[#151821] border border-[#282E3E] hover:border-[#EF4444]/40 hover:bg-[#181C26] transition-all shadow-xl flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-8 h-8 rounded-xl bg-[#1F2432] border border-[#2D3546] flex items-center justify-center text-[#EF4444] shrink-0">
+                    <FileText className="w-4 h-4" />
                   </div>
-
-                  <h3 className="text-base font-bold text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-1 truncate">
-                    {script.title}
-                  </h3>
-
-                  <p className="text-xs text-[#94A3B8] line-clamp-3 leading-relaxed mb-4">
-                    "{(script.plainText || '').substring(0, 140)}..."
-                  </p>
+                  <span className="text-[11px] px-2 py-0.5 rounded-lg bg-[#12151D] text-[#94A3B8] font-mono border border-[#282E3E]">
+                    ~{script.estimatedMinutes} min
+                  </span>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between text-[11px] text-[#64748B] pt-3 border-t border-[#282E3E] mb-3">
-                    <span className="font-mono">
-                      {script.wordCount} palavras
-                    </span>
-                    <span>{script.updatedAt}</span>
-                  </div>
+                <h3 className="text-base font-bold text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-1 truncate">
+                  {script.title}
+                </h3>
 
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => onSelectScriptToPresent(script)}
-                      title="Iniciar Apresentação no Teleprompter"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#FACC15] text-[#0C0E14] text-xs font-bold hover:bg-[#EAB308] transition-all shadow-md shadow-[#FACC15]/20 active:scale-95"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Apresentar</span>
-                    </button>
+                <p className="text-xs text-[#94A3B8] line-clamp-3 leading-relaxed mb-4">
+                  "{(script.plainText || '').substring(0, 140)}..."
+                </p>
+              </div>
 
-                    <button
-                      onClick={() => setPreviewScript(script)}
-                      title="Prévia do roteiro"
-                      className="p-2 rounded-xl bg-[#1F2432] text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#282E3E] transition-colors border border-[#2D3546]"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
+              <div>
+                <div className="flex items-center justify-between text-[11px] text-[#64748B] pt-3 border-t border-[#282E3E] mb-3">
+                  <span className="font-mono">{script.wordCount} palavras</span>
+                  <span>{script.updatedAt}</span>
+                </div>
 
-                    <button
-                      onClick={() => onEditScript(script)}
-                      title="Editar roteiro"
-                      className="p-2 rounded-xl bg-[#1F2432] text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#282E3E] transition-colors border border-[#2D3546]"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => onSelectScriptToPresent(script)}
+                    title="Iniciar Apresentação no Teleprompter"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#FACC15] text-[#0C0E14] text-xs font-bold hover:bg-[#EAB308] transition-all shadow-md shadow-[#FACC15]/20 active:scale-95"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Apresentar</span>
+                  </button>
 
-                    <button
-                      onClick={() => handleDelete(script.id, script.title)}
-                      title="Excluir roteiro"
-                      className="p-2 rounded-xl bg-[#1F2432] text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#282E3E] transition-colors border border-[#2D3546]"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => onEditScript(script)}
+                    title="Editar roteiro"
+                    className="p-2 rounded-xl bg-[#1F2432] text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#282E3E] transition-colors border border-[#2D3546]"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(script.id, script.title)}
+                    title="Excluir roteiro"
+                    className="p-2 rounded-xl bg-[#1F2432] text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#282E3E] transition-colors border border-[#2D3546]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
 
