@@ -53,8 +53,8 @@ export const Header = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#12151D]/95 backdrop-blur-xl border-b border-[#282E3E] shadow-2xl select-none px-3 sm:px-6 py-2">
-      <div className="max-w-7xl mx-auto flex items-center justify-between min-h-[56px] gap-2 sm:gap-4">
+    <header className="sticky top-0 z-40 w-full bg-[#12151D]/95 backdrop-blur-xl border-b border-[#282E3E] shadow-2xl select-none px-3 sm:px-6">
+      <div className="max-w-7xl mx-auto flex items-center justify-between h-[60px] gap-2 sm:gap-4">
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => onNavigate('teleprompter')}
