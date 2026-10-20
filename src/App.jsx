@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
-import { TeleprompterView } from './components/TeleprompterView';
+import TeleprompterView from './components/TeleprompterView';
 import { ScriptEditorView } from './components/ScriptEditorView';
 import { ScriptsListView } from './components/ScriptsListView';
 import { SecondScreenModal } from './components/SecondScreenModal';
@@ -250,7 +250,7 @@ export default function App() {
         {activeScreen === 'teleprompter' && (
           <TeleprompterView
             key={activeScript?.id || 'empty'}
-            script={activeScript}
+            script={activeScript || {}}
             onEndPresentation={() => navigateTo('scripts')}
             onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
           />
