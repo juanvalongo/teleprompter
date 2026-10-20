@@ -1,18 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import {
   ChevronRight,
   Trash2,
   Save,
   Play,
   Edit3,
-  Bold,
-  Italic,
-  Underline,
-  Highlighter,
-  AlignLeft,
-  AlignCenter,
   Check,
 } from 'lucide-react';
+import { TipTapEditor } from './TipTapEditor';
 
 export const ScriptEditorView = ({
   script,
@@ -21,34 +16,19 @@ export const ScriptEditorView = ({
   onCancel,
   onStartPresentation,
 }) => {
-  const [title, setTitle] = useState(script.title);
-  const [contentHtml, setContentHtml] = useState(script.content);
+  const [prevScriptId, setPrevScriptId] = useState(script?.id);
+  const [title, setTitle] = useState(script?.title || '');
+  const [contentHtml, setContentHtml] = useState(script?.content || '');
+  const [plainText, setPlainText] = useState(script?.plainText || '');
   const [isSavedFeedback, setIsSavedFeedback] = useState(false);
-  const [alignment, setAlignment] = useState('left');
-  const editorRef = useRef(null);
 
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== script.content) {
-      editorRef.current.innerHTML = script.content;
-    }
-  }, [script.content]);
-
-  const executeCommand = (command, value = undefined) => {
-    document.execCommand(command, false, value);
-    if (editorRef.current) {
-      setContentHtml(editorRef.current.innerHTML);
-    }
-  };
-
-  const handleHighlight = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    document.execCommand('backColor', false, '#FACC15');
-    if (editorRef.current) {
-      setContentHtml(editorRef.current.innerHTML);
-    }
-  };
+  // Sincroniza o estado caso o roteiro selecionado mude sem desmontar o componente
+  if (script?.id !== prevScriptId) {
+    setPrevScriptId(script?.id);
+    setTitle(script?.title || '');
+    setContentHtml(script?.content || '');
+    setPlainText(script?.plainText || '');
+  }
 
   const calculateWordCount = (text) => {
     const clean = (text || '').replace(/<[^>]*>/g, ' ').trim();
@@ -57,8 +37,8 @@ export const ScriptEditorView = ({
   };
 
   const handleSave = () => {
-    const html = editorRef.current ? editorRef.current.innerHTML : contentHtml;
-    const plain = editorRef.current ? editorRef.current.innerText : '';
+    const html = contentHtml;
+    const plain = plainText || (contentHtml || '').replace(/<[^>]*>/g, ' ').trim();
     const words = calculateWordCount(plain);
 
     const updated = {
@@ -79,8 +59,8 @@ export const ScriptEditorView = ({
   };
 
   const handleLaunch = () => {
-    const html = editorRef.current ? editorRef.current.innerHTML : contentHtml;
-    const plain = editorRef.current ? editorRef.current.innerText : '';
+    const html = contentHtml;
+    const plain = plainText || (contentHtml || '').replace(/<[^>]*>/g, ' ').trim();
     const words = calculateWordCount(plain);
     const updated = {
       ...script,
@@ -93,9 +73,6 @@ export const ScriptEditorView = ({
     };
     onStartPresentation(updated);
   };
-
-  const currentWords = calculateWordCount(contentHtml);
-  const currentEstMin = Math.max(1, Math.ceil(currentWords / 130));
 
   return (
     <div className="flex flex-col w-full max-w-5xl mx-auto pb-16 space-y-5">
@@ -190,124 +167,14 @@ export const ScriptEditorView = ({
         </div>
       </div>
 
-      <div className="sticky top-4 z-30 bg-[#151821]/95 backdrop-blur-xl p-2.5 rounded-2xl shadow-xl flex items-center justify-between flex-wrap gap-2 border border-[#282E3E]">
-        <div className="flex items-center gap-1 flex-wrap">
-          <div className="flex items-center bg-[#12151D] p-1 rounded-xl border border-[#282E3E]">
-            <button
-              type="button"
-              onClick={() => executeCommand('bold')}
-              title="Negrito [Ctrl+B]"
-              className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[#F8FAFC] hover:bg-[#1F2432] transition-colors text-xs"
-            >
-              <Bold className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => executeCommand('italic')}
-              title="Itálico [Ctrl+I]"
-              className="w-7 h-7 rounded-lg flex items-center justify-center italic text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#1F2432] transition-colors text-xs font-serif"
-            >
-              <Italic className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => executeCommand('underline')}
-              title="Sublinhado"
-              className="w-7 h-7 rounded-lg flex items-center justify-center underline text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#1F2432] transition-colors text-xs"
-            >
-              <Underline className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="w-px h-5 bg-[#282E3E] mx-1 hidden sm:block"></div>
-
-          <button
-            type="button"
-            onClick={handleHighlight}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#12151D] text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#1F2432] transition-colors text-xs font-semibold border border-[#282E3E]"
-            title="Destacar termos chave em amarelo para o orador"
-          >
-            <Highlighter className="w-3.5 h-3.5 text-[#FACC15]" />
-            <span>Destaque</span>
-          </button>
-
-          <div className="w-px h-5 bg-[#282E3E] mx-1 hidden sm:block"></div>
-
-          <div className="flex items-center bg-[#12151D] p-1 rounded-xl border border-[#282E3E]">
-            <button
-              type="button"
-              onClick={() => {
-                setAlignment('left');
-                executeCommand('justifyLeft');
-              }}
-              title="Alinhar à Esquerda"
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                alignment === 'left'
-                  ? 'bg-[#1F2432] text-[#EF4444]'
-                  : 'text-[#94A3B8] hover:bg-[#1F2432]'
-              }`}
-            >
-              <AlignLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAlignment('center');
-                executeCommand('justifyCenter');
-              }}
-              title="Centralizar para Leitura de Palco"
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                alignment === 'center'
-                  ? 'bg-[#1F2432] text-[#EF4444]'
-                  : 'text-[#94A3B8] hover:bg-[#1F2432]'
-              }`}
-            >
-              <AlignCenter className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 font-mono text-xs text-[#94A3B8]">
-          <span>
-            <strong className="text-[#FACC15] tabular-nums">
-              {currentWords}
-            </strong>{' '}
-            palavras
-          </span>
-          <span>·</span>
-          <span>
-            ~
-            <strong className="text-[#FACC15] tabular-nums">
-              {currentEstMin}
-            </strong>{' '}
-            min
-          </span>
-        </div>
-      </div>
-
-      <div className="bg-[#151821] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col gap-3 border border-[#282E3E]">
-        <div className="flex items-center justify-between pb-2 border-b border-[#282E3E]">
-          <span className="text-[10px] uppercase tracking-wider text-[#64748B] font-bold">
-            Corpo do Texto do Teleprompter
-          </span>
-          <span className="text-[11px] text-[#64748B]">
-            Parágrafos divididos automaticamente em blocos na rolagem
-          </span>
-        </div>
-
-        <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={() => {
-            if (editorRef.current) {
-              setContentHtml(editorRef.current.innerHTML);
-            }
-          }}
-          className="min-h-[380px] w-full rounded-2xl bg-[#0C0E14] p-6 text-base sm:text-lg text-[#F8FAFC] leading-relaxed outline-none focus:ring-1 focus:ring-[#EF4444]/60 transition-colors select-text border border-[#282E3E] font-normal shadow-inner"
-          spellCheck="false"
-        />
-      </div>
+      {/* Editor TipTap com Toolbar integrada */}
+      <TipTapEditor
+        value={contentHtml}
+        onChange={(html, { text }) => {
+          setContentHtml(html);
+          setPlainText(text);
+        }}
+      />
 
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-[#151821] rounded-2xl border border-[#282E3E] shadow-lg">
         <span className="text-xs text-[#64748B] flex items-center gap-1.5">
