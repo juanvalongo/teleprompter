@@ -42,14 +42,29 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
   useEffect(() => {
     if (!isOpen || !isPlaying) return;
 
-    const interval = setInterval(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop += 1;
-      }
-    }, Math.max(20, Math.floor(4500 / (wpm / 10))));
+    let animationFrameId;
+    let lastTime = performance.now();
+    let accumulatedScroll = 0;
 
-    return () => clearInterval(interval);
-  }, [isOpen, isPlaying, wpm]);
+    const step = (now) => {
+      const deltaSeconds = (now - lastTime) / 1000;
+      lastTime = now;
+
+      const pixelsPerSecond = (wpm / 140) * (fontSize * 0.9);
+      accumulatedScroll += pixelsPerSecond * deltaSeconds;
+
+      if (scrollContainerRef.current && accumulatedScroll >= 1) {
+        const wholePixels = Math.floor(accumulatedScroll);
+        scrollContainerRef.current.scrollTop += wholePixels;
+        accumulatedScroll -= wholePixels;
+      }
+
+      animationFrameId = requestAnimationFrame(step);
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isOpen, isPlaying, wpm, fontSize]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -111,7 +126,7 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
               align-items: center;
               min-height: 100vh;
               overflow-y: auto;
-              padding: 45vh 2rem 60vh;
+              padding: 45vh 2rem 65vh;
               text-align: center;
               line-height: 1.45;
               transform: ${isMirrored ? 'scaleX(-1)' : 'none'};
@@ -141,6 +156,34 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
           <div class="display-text">
             ${displayHtml}
           </div>
+          <script>
+            (function() {
+              let playing = true;
+              let lastTime = performance.now();
+              let acc = 0;
+              const pxPerSec = (${wpm} / 140) * (${fontSize} * 0.9);
+              function step(now) {
+                const dt = (now - lastTime) / 1000;
+                lastTime = now;
+                if (playing) {
+                  acc += pxPerSec * dt;
+                  if (acc >= 1) {
+                    const whole = Math.floor(acc);
+                    window.scrollBy(0, whole);
+                    acc -= whole;
+                  }
+                }
+                requestAnimationFrame(step);
+              }
+              window.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                  e.preventDefault();
+                  playing = !playing;
+                }
+              });
+              requestAnimationFrame(step);
+            })();
+          </script>
         </body>
         </html>
       `);
