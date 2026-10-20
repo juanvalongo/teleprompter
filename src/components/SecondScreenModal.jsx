@@ -11,6 +11,13 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+const DEFAULT_PROMPTER_HTML = `
+  <p>Senhoras e senhores, sejam bem-vindos à transmissão de lançamento da plataforma ORATO.</p>
+  <p>Neste momento demonstramos a tecnologia de teleprompter inteligente de última geração.</p>
+  <p>À medida que você fala, o sistema identifica cada palavra em tempo real e rola o texto automaticamente sem precisar de pedal ou operador manual.</p>
+  <p>Se você fizer uma pausa ou improvisar, o algoritmo aguarda pacientemente a sua retomada natural.</p>
+`;
+
 export const SecondScreenModal = ({ isOpen, onClose, script }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [wpm, setWpm] = useState(140);
@@ -20,17 +27,68 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
   const modalContainerRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
+  const displayTitle = script?.title || 'Apresentação de Abertura';
+  const displayHtml =
+    script?.content && script.content.trim()
+      ? script.content
+      : script?.plainText && script.plainText.trim()
+      ? script.plainText
+          .split(/\n+/)
+          .filter((line) => line.trim().length > 0)
+          .map((line) => `<p>${line}</p>`)
+          .join('')
+      : DEFAULT_PROMPTER_HTML;
+
   useEffect(() => {
     if (!isOpen || !isPlaying) return;
 
-    const interval = setInterval(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollBy({ top: 1, behavior: 'auto' });
-      }
-    }, Math.max(25, Math.floor(5500 / (wpm / 10))));
+    let animationFrameId;
+    let lastTime = performance.now();
+    let accumulatedScroll = 0;
 
-    return () => clearInterval(interval);
-  }, [isOpen, isPlaying, wpm]);
+    const step = (now) => {
+      const deltaSeconds = (now - lastTime) / 1000;
+      lastTime = now;
+
+      const pixelsPerSecond = (wpm / 140) * (fontSize * 0.9);
+      accumulatedScroll += pixelsPerSecond * deltaSeconds;
+
+      if (scrollContainerRef.current && accumulatedScroll >= 1) {
+        const wholePixels = Math.floor(accumulatedScroll);
+        scrollContainerRef.current.scrollTop += wholePixels;
+        accumulatedScroll -= wholePixels;
+      }
+
+      animationFrameId = requestAnimationFrame(step);
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isOpen, isPlaying, wpm, fontSize]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying((prev) => !prev);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollBy({ top: -100, behavior: 'smooth' });
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollBy({ top: 100, behavior: 'smooth' });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   const toggleFullscreen = () => {
     if (!modalContainerRef.current) return;
@@ -50,12 +108,13 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
       'width=1280,height=720,menubar=no,toolbar=no'
     );
     if (prompterWindow) {
+      prompterWindow.document.open();
       prompterWindow.document.write(`
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head>
           <meta charset="utf-8" />
-          <title>ORATO — 2ª Tela (Prompter HDMI)</title>
+          <title>ORATO — 2ª Tela (${displayTitle})</title>
           <style>
             body {
               margin: 0;
@@ -65,18 +124,21 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
               display: flex;
               flex-direction: column;
               align-items: center;
-              justify-content: center;
               min-height: 100vh;
               overflow-y: auto;
-              padding: 4rem 2rem;
+              padding: 45vh 2rem 65vh;
               text-align: center;
               line-height: 1.45;
+              transform: ${isMirrored ? 'scaleX(-1)' : 'none'};
             }
             .display-text {
-              font-size: 3.2rem;
+              font-size: ${fontSize}px;
               max-width: 950px;
               font-weight: 500;
               letter-spacing: -0.01em;
+            }
+            .display-text p {
+              margin-bottom: 2.5rem;
             }
             .eye-line {
               position: fixed;
@@ -92,11 +154,40 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
         <body>
           <div class="eye-line"></div>
           <div class="display-text">
-            ${script?.content || ''}
+            ${displayHtml}
           </div>
+          <script>
+            (function() {
+              let playing = true;
+              let lastTime = performance.now();
+              let acc = 0;
+              const pxPerSec = (${wpm} / 140) * (${fontSize} * 0.9);
+              function step(now) {
+                const dt = (now - lastTime) / 1000;
+                lastTime = now;
+                if (playing) {
+                  acc += pxPerSec * dt;
+                  if (acc >= 1) {
+                    const whole = Math.floor(acc);
+                    window.scrollBy(0, whole);
+                    acc -= whole;
+                  }
+                }
+                requestAnimationFrame(step);
+              }
+              window.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                  e.preventDefault();
+                  playing = !playing;
+                }
+              });
+              requestAnimationFrame(step);
+            })();
+          </script>
         </body>
         </html>
       `);
+      prompterWindow.document.close();
     }
   };
 
@@ -114,7 +205,7 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
             2ª TELA · SAÍDA HDMI
           </div>
           <span className="text-sm font-bold text-[#F8FAFC] truncate max-w-xs sm:max-w-md">
-            {script?.title || 'Sem roteiro'}
+            {displayTitle}
           </span>
         </div>
 
@@ -187,7 +278,7 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
 
       <div
         ref={scrollContainerRef}
-        className={`flex-1 overflow-y-auto px-6 sm:px-16 md:px-28 py-44 scroll-smooth bg-[#000000] ${
+        className={`flex-1 overflow-y-auto px-6 sm:px-16 md:px-28 pt-[42vh] pb-[65vh] bg-[#000000] ${
           isMirrored ? 'scale-x-[-1]' : ''
         }`}
       >
@@ -196,7 +287,7 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
           style={{ fontSize: `${fontSize}px` }}
         >
           <div
-            dangerouslySetInnerHTML={{ __html: script?.content || '' }}
+            dangerouslySetInnerHTML={{ __html: displayHtml }}
             className="space-y-12"
           />
         </div>

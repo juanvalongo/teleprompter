@@ -16,9 +16,23 @@ import {
 } from './services/scriptsApi';
 import { Check, Trash2, Edit3, Plus, AlertCircle } from 'lucide-react';
 
+const PRESENTER_SCRIPT_KEY = 'orato_active_presenter_script';
+
 export default function App() {
   const [scripts, setScripts] = useState([]);
-  const [activeScript, setActiveScript] = useState(null);
+  const [activeScript, setActiveScript] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PRESENTER_SCRIPT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (err) {
+      console.warn(err);
+    }
+    return null;
+  });
+
+  const [isSecondScreenWindow, setIsSecondScreenWindow] = useState(() => {
+    return window.location.hash.replace('#', '').toLowerCase() === 'segunda-tela';
+  });
 
   const [activeScreen, setActiveScreen] = useState(() => {
     const hash = window.location.hash.replace('#', '').toLowerCase();
@@ -29,9 +43,6 @@ export default function App() {
     return 'teleprompter';
   });
 
-  const [isSecondScreenOpen, setIsSecondScreenOpen] = useState(() => {
-    return window.location.hash.toLowerCase().includes('segunda-tela');
-  });
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isScreenGalleryOpen, setIsScreenGalleryOpen] = useState(() => {
     return window.location.hash.toLowerCase().includes('navegador');
@@ -87,14 +98,45 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    try {
+      if (activeScript) {
+        localStorage.setItem(PRESENTER_SCRIPT_KEY, JSON.stringify(activeScript));
+      } else {
+        localStorage.removeItem(PRESENTER_SCRIPT_KEY);
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }, [activeScript]);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === PRESENTER_SCRIPT_KEY) {
+        try {
+          setActiveScript(e.newValue ? JSON.parse(e.newValue) : null);
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (hash === 'segunda-tela') {
+        setIsSecondScreenWindow(true);
+        return;
+      }
+      setIsSecondScreenWindow(false);
       if (hash === 'editor') setActiveScreen('editor');
       else if (hash === 'roteiros' || hash === 'scripts') setActiveScreen('scripts');
       else if (hash === 'monitoramento' || hash === 'monitoring') setActiveScreen('monitoring');
       else if (hash === 'configuracoes' || hash === 'settings') setActiveScreen('settings');
       else if (hash === 'apresentacao' || hash === 'teleprompter') setActiveScreen('teleprompter');
-      else if (hash === 'segunda-tela') setIsSecondScreenOpen(true);
       else if (hash === 'navegador') setIsScreenGalleryOpen(true);
     };
 
@@ -103,6 +145,7 @@ export default function App() {
   }, []);
 
   const navigateTo = (screen) => {
+    setIsSecondScreenWindow(false);
     setActiveScreen(screen);
     const hashMap = {
       teleprompter: 'apresentacao',
@@ -113,6 +156,30 @@ export default function App() {
     };
     window.location.hash = hashMap[screen];
   };
+
+  const handleOpenSecondScreen = useCallback(() => {
+    try {
+      if (activeScript) {
+        localStorage.setItem(PRESENTER_SCRIPT_KEY, JSON.stringify(activeScript));
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+
+    const secondScreenUrl = `${window.location.origin}${window.location.pathname}#segunda-tela`;
+    const popup = window.open(
+      secondScreenUrl,
+      'ORATO_SEGUNDA_TELA',
+      'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
+    );
+
+    if (popup) {
+      popup.focus();
+      showToast('2ª Tela aberta em nova janela', 'check');
+    } else {
+      window.location.hash = 'segunda-tela';
+    }
+  }, [activeScript, showToast]);
 
   useEffect(() => {
     try {
@@ -134,21 +201,27 @@ export default function App() {
       }
 
       if (e.key === 'Escape') {
-        setIsSecondScreenOpen(false);
         setIsShortcutsOpen(false);
         setIsScreenGalleryOpen(false);
-      } else if (e.key === '2') {
-        setIsSecondScreenOpen((prev) => !prev);
-      } else if (e.key === 'e' || e.key === 'E') {
+        if (isSecondScreenWindow) {
+          if (window.opener) {
+            window.close();
+          } else {
+            navigateTo('teleprompter');
+          }
+        }
+      } else if (e.key === '2' && !isSecondScreenWindow) {
+        handleOpenSecondScreen();
+      } else if ((e.key === 'e' || e.key === 'E') && !isSecondScreenWindow) {
         navigateTo('editor');
-      } else if (e.key === 'r' || e.key === 'R') {
+      } else if ((e.key === 'r' || e.key === 'R') && !isSecondScreenWindow) {
         navigateTo('scripts');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isSecondScreenWindow, handleOpenSecondScreen]);
 
   const handleSaveScript = async (updatedScript) => {
     try {
@@ -233,13 +306,29 @@ export default function App() {
     navigateTo('editor');
   };
 
+  if (isSecondScreenWindow) {
+    return (
+      <SecondScreenModal
+        isOpen={true}
+        onClose={() => {
+          if (window.opener) {
+            window.close();
+          } else {
+            navigateTo('teleprompter');
+          }
+        }}
+        script={activeScript}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0C0E14] text-[#F8FAFC] font-sans antialiased selection:bg-[#EF4444] selection:text-[#FFFFFF]">
       <Header
         activeScreen={activeScreen}
         onNavigate={navigateTo}
         onNewScript={handleCreateNewScript}
-        onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
+        onOpenSecondScreen={handleOpenSecondScreen}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onOpenScreenGallery={() => setIsScreenGalleryOpen(true)}
         studioConfig={studioConfig}
@@ -252,7 +341,7 @@ export default function App() {
             key={activeScript?.id || 'empty'}
             script={activeScript || {}}
             onEndPresentation={() => navigateTo('scripts')}
-            onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
+            onOpenSecondScreen={handleOpenSecondScreen}
           />
         )}
 
@@ -299,12 +388,6 @@ export default function App() {
         )}
       </main>
 
-      <SecondScreenModal
-        isOpen={isSecondScreenOpen}
-        onClose={() => setIsSecondScreenOpen(false)}
-        script={activeScript}
-      />
-
       <ShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
@@ -314,7 +397,7 @@ export default function App() {
         isOpen={isScreenGalleryOpen}
         onClose={() => setIsScreenGalleryOpen(false)}
         onNavigate={navigateTo}
-        onOpenSecondScreen={() => setIsSecondScreenOpen(true)}
+        onOpenSecondScreen={handleOpenSecondScreen}
       />
 
       <div
