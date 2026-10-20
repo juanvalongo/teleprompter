@@ -18,6 +18,7 @@ import {
   ArrowUp,
   Radio,
 } from "lucide-react";
+import { useTeleprompterSync } from "../hooks/useTeleprompterSync";
 
 export default function TeleprompterView({
   script = {},
@@ -31,6 +32,32 @@ export default function TeleprompterView({
   const [latencyMs, setLatencyMs] = useState(12);
   const [speechAccuracy, setSpeechAccuracy] = useState("99.8%");
   const [improviseState, setImproviseState] = useState(false);
+
+  const scriptId = script.id || "script-demo-123";
+  const sessionId = "sessao-ao-vivo-1";
+
+  // ==========================================
+  // SINCRONIZAÇÃO SOCKET.IO (EMISSOR / CONTROLE REMOTO)
+  // ==========================================
+  const { isConnected: isSocketConnected, sendCommand } = useTeleprompterSync({
+    scriptId,
+    sessionId,
+    role: "emitter", // <-- Agora o TeleprompterView é o Emissor (Chefe)
+  });
+
+  // Observa quando o Play/Pause muda no Painel e avisa a 2ª Tela
+  useEffect(() => {
+    if (isSocketConnected) {
+      sendCommand(isPlaying ? "play" : "pause");
+    }
+  }, [isPlaying, isSocketConnected, sendCommand]);
+
+  // Observa quando você altera a Velocidade e sincroniza a 2ª Tela
+  useEffect(() => {
+    if (isSocketConnected) {
+      sendCommand("set-speed", wpm);
+    }
+  }, [wpm, isSocketConnected, sendCommand]);
 
   const viewportRef = useRef(null);
 
@@ -188,7 +215,6 @@ export default function TeleprompterView({
           break;
         }
       }
-      // ERRO 1 CORRIGIDO: A chave de fechamento indevida que estava aqui foi removida.
 
       if (newWordIndex !== activeWordIndex) {
         setActiveWordIndex(newWordIndex);
@@ -201,7 +227,6 @@ export default function TeleprompterView({
         }
       }
     }
-    // ERRO 2 CORRIGIDO: activeWordIndex adicionado às dependências
   }, [
     cleanTranscript,
     isListening,
@@ -210,6 +235,21 @@ export default function TeleprompterView({
     blocks,
     isPlaying,
   ]);
+
+  // ==========================================
+  // CABO HDMI VIRTUAL (Sincroniza Texto e Voz para a 2ª Tela)
+  // ==========================================
+  useEffect(() => {
+    const channel = new BroadcastChannel("orato_hdmi_sync");
+    channel.postMessage({
+      script: script,
+      blocks: blocks,
+      activeBlockIndex: activeBlockIndex,
+      activeWordIndex: activeWordIndex,
+      isPlaying: isPlaying,
+    });
+    return () => channel.close();
+  }, [script, blocks, activeBlockIndex, activeWordIndex, isPlaying]);
 
   const adjustScroll = (offset) => {
     if (viewportRef.current)
