@@ -241,13 +241,19 @@ export default function TeleprompterView({
   // ==========================================
   useEffect(() => {
     const channel = new BroadcastChannel("orato_hdmi_sync");
-    channel.postMessage({
+    const payload = {
       script: script,
       blocks: blocks,
       activeBlockIndex: activeBlockIndex,
       activeWordIndex: activeWordIndex,
       isPlaying: isPlaying,
-    });
+    };
+
+    // 1. Envia os dados ao vivo pelo canal
+    channel.postMessage(payload);
+    // 2. Guarda a foto do momento exato na memória para a nova aba carregar imediatamente
+    localStorage.setItem("orato_hdmi_initial_state", JSON.stringify(payload));
+
     return () => channel.close();
   }, [script, blocks, activeBlockIndex, activeWordIndex, isPlaying]);
 
