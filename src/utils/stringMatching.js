@@ -1,22 +1,27 @@
+/** Normaliza palavras para comparar fala e roteiro em português. */
+export const normalizeForMatch = (text = "") =>
+  String(text)
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 /**
- * Calcula a taxa de acerto do que foi falado em relação ao bloco.
- * Ignora o tamanho total do bloco para não penalizar frases curtas.
+ * Mede a proporção de palavras reconhecidas presentes no bloco atual.
+ * Mantém o comportamento simples existente (0 a 1), mas ignora acentos,
+ * caixa, pontuação e espaços duplicados nos dois textos.
  */
 export const calculateSimilarity = (spokenText, scriptBlock) => {
-  if (!spokenText || !scriptBlock) return 0;
+  const spokenWords = normalizeForMatch(spokenText).split(" ").filter(Boolean);
+  const scriptWords = new Set(
+    normalizeForMatch(scriptBlock).split(" ").filter(Boolean),
+  );
 
-  const spokenWords = spokenText.split(" ").filter(Boolean);
-  if (spokenWords.length === 0) return 0;
+  if (spokenWords.length === 0 || scriptWords.size === 0) return 0;
 
-  const scriptWords = new Set(scriptBlock.split(" "));
-
-  // Conta quantas das palavras que você acabou de falar existem no bloco atual
-  let hits = 0;
-  spokenWords.forEach((word) => {
-    if (scriptWords.has(word)) hits++;
-  });
-
-  // Se você falou 4 palavras e 3 estão no texto = 75% de acerto (0.75)
+  const hits = spokenWords.filter((word) => scriptWords.has(word)).length;
   return hits / spokenWords.length;
 };
 

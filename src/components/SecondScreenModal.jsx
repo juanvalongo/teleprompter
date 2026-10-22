@@ -14,20 +14,23 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
   const modalContainerRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  const [syncData, setSyncData] = useState(() => {
-    try {
-      const saved = localStorage.getItem("orato_hdmi_initial_state");
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return {
-      script: script,
-      blocks: [],
-      activeBlockIndex: 0,
-      activeWordIndex: 0,
-      isPlaying: false,
-    };
-  });
+  const defaultSyncData = {
+  script,
+  blocks: [],
+  activeBlockIndex: 0,
+  activeWordIndex: 0,
+  isPlaying: false,
+};
 
+const [syncData, setSyncData] = useState(() => {
+  try {
+    const saved = localStorage.getItem("orato_hdmi_initial_state");
+    return saved ? JSON.parse(saved) : defaultSyncData;
+  } catch {
+    return defaultSyncData;
+  }
+});
+    
   useEffect(() => {
     const channel = new BroadcastChannel("orato_hdmi_sync");
     channel.onmessage = (event) => {
