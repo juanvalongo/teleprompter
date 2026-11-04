@@ -17,7 +17,10 @@ import {
   Undo,
   Redo,
   WrapText,
+  Tag,
 } from 'lucide-react';
+import { RetrancaParagraph } from './RetrancaParagraph';
+import { parseRetranca } from '../../utils/retrancaParser';
 import './TipTapEditor.css';
 
 /**
@@ -31,20 +34,34 @@ const TipTapToolbar = ({ editor, showStats = true, wordCount = 0 }) => {
   return (
     <div className="sticky top-4 z-30 bg-[#151821]/95 backdrop-blur-xl p-2.5 rounded-2xl shadow-xl flex items-center justify-between flex-wrap gap-2 border border-[#282E3E]">
       <div className="flex items-center gap-1 flex-wrap">
-        {/* Bloco / Estrutura de Parágrafo e Títulos */}
+        {/* Bloco / Estrutura de Parágrafo, Retranca e Títulos */}
         <div className="flex items-center bg-[#12151D] p-1 rounded-xl border border-[#282E3E]">
           <button
             type="button"
-            onClick={() => editor.chain().focus().setParagraph().run()}
+            onClick={() => editor.chain().focus().setParagraph({ retranca: false }).run()}
             title="Parágrafo normal"
             className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-xs ${
               editor.isActive('paragraph') &&
-              !editor.isActive('heading')
+              !editor.isActive('heading') &&
+              !editor.isActive('paragraph', { retranca: true })
                 ? 'bg-[#1F2432] text-[#EF4444]'
                 : 'text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#1F2432]'
             }`}
           >
             <Pilcrow className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().toggleRetranca().run()}
+            title="Marcar como Retranca [Ctrl+Shift+S]"
+            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg transition-all text-xs font-semibold ${
+              editor.isActive('paragraph', { retranca: true })
+                ? 'bg-[#1F2432] text-[#FACC15] border border-[#FACC15]/40 shadow-sm'
+                : 'text-[#94A3B8] hover:text-[#FFFFFF] hover:bg-[#1F2432]'
+            }`}
+          >
+            <Tag className="w-3.5 h-3.5 text-[#FACC15]" />
+            <span className="hidden sm:inline">Retranca</span>
           </button>
           <button
             type="button"
@@ -227,12 +244,13 @@ const TipTapToolbar = ({ editor, showStats = true, wordCount = 0 }) => {
  * Editor TipTap isolado para o Teleprompter
  *
  * Suporta:
- * - Parágrafos / Quebra de blocos semânticos (<p>)
+ * - Parágrafos normais e blocos de Retranca jornalística (data-type="retranca")
  * - Títulos H1, H2, H3
  * - Negrito, Itálico, Sublinhado
  * - Alinhamento (Left, Center, Right)
  * - Hard Break (quebra de linha dentro do bloco)
  * - Undo / Redo
+ * - Atalho Ctrl+Shift+S para alternar bloco atual como Retranca
  *
  * Props:
  * @param {string} value - Conteúdo HTML inicial ou controlado
@@ -256,14 +274,12 @@ export const TipTapEditor = ({
     return clean.split(/\s+/).filter(Boolean).length;
   };
 
+  const initialContent = parseRetranca(value || '');
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        paragraph: {
-          HTMLAttributes: {
-            class: 'tiptap-paragraph',
-          },
-        },
+        paragraph: false,
         heading: {
           levels: [1, 2, 3],
         },
@@ -271,6 +287,7 @@ export const TipTapEditor = ({
           keepMarks: true,
         },
       }),
+      RetrancaParagraph,
       Underline,
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -278,7 +295,7 @@ export const TipTapEditor = ({
         defaultAlignment: 'left',
       }),
     ],
-    content: value || '',
+    content: initialContent,
     editable,
     editorProps: {
       attributes: {
@@ -287,18 +304,18 @@ export const TipTapEditor = ({
         spellcheck: 'false',
       },
     },
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
+    onUpdate: ({ editor: currentEditor }) => {
+      const html = currentEditor.getHTML();
       // Separação em blocos com quebra de linha para o teleprompter consumir
-      const text = editor.getText({ blockSeparator: '\n\n' });
+      const text = currentEditor.getText({ blockSeparator: '\n\n' });
       const wordCount = calculateWords(text);
 
       if (onChange) {
         onChange(html, {
           text,
-          json: editor.getJSON(),
+          json: currentEditor.getJSON(),
           wordCount,
-          editor,
+          editor: currentEditor,
         });
       }
     },
@@ -309,7 +326,10 @@ export const TipTapEditor = ({
     if (!editor) return;
     const currentHtml = editor.getHTML();
     if (value !== undefined && value !== currentHtml) {
-      editor.commands.setContent(value || '', false);
+      const preparedValue = parseRetranca(value || '');
+      if (preparedValue !== currentHtml) {
+        editor.commands.setContent(preparedValue, false);
+      }
     }
   }, [value, editor]);
 
@@ -338,7 +358,7 @@ export const TipTapEditor = ({
             Corpo do Texto do Teleprompter
           </span>
           <span className="text-[11px] text-[#64748B]">
-            Parágrafos divididos automaticamente em blocos na rolagem
+            Use <kbd className="px-1.5 py-0.5 rounded bg-[#12151D] border border-[#282E3E] text-[#FACC15] font-mono text-[10px]">Ctrl+Shift+S</kbd> para marcar Retranca
           </span>
         </div>
 

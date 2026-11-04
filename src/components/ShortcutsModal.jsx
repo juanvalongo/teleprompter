@@ -10,6 +10,7 @@ export const ShortcutsModal = ({ isOpen, onClose }) => {
     { key: 'M', action: 'Microfone STT', description: 'Ativa ou silencia a captura contínua de voz' },
     { key: 'F', action: 'Tela Cheia', description: 'Entra ou sai do modo imersivo de apresentação' },
     { key: '2', action: '2ª Tela Prompter', description: 'Abre a interface espelhada para saída HDMI de palco' },
+    { key: 'Ctrl+Shift+S', action: 'Retranca', description: 'Marca ou desmarca o bloco atual como Retranca no editor' },
     { key: 'E', action: 'Editor', description: 'Abre o editor de roteiro ativo' },
     { key: 'R', action: 'Lista de Roteiros', description: 'Retorna para a listagem geral de roteiros' },
     { key: 'Esc', action: 'Fechar Janelas', description: 'Fecha modais, menus suspensos ou encerra modo tela cheia' },

@@ -15,22 +15,22 @@ export const SecondScreenModal = ({ isOpen, onClose, script }) => {
   const scrollContainerRef = useRef(null);
 
   const defaultSyncData = {
-  script,
-  blocks: [],
-  activeBlockIndex: 0,
-  activeWordIndex: 0,
-  isPlaying: false,
-};
+    script,
+    blocks: [],
+    activeBlockIndex: 0,
+    activeWordIndex: 0,
+    isPlaying: false,
+  };
 
-const [syncData, setSyncData] = useState(() => {
-  try {
-    const saved = localStorage.getItem("orato_hdmi_initial_state");
-    return saved ? JSON.parse(saved) : defaultSyncData;
-  } catch {
-    return defaultSyncData;
-  }
-});
-    
+  const [syncData, setSyncData] = useState(() => {
+    try {
+      const saved = localStorage.getItem("orato_hdmi_initial_state");
+      return saved ? JSON.parse(saved) : defaultSyncData;
+    } catch {
+      return defaultSyncData;
+    }
+  });
+
   useEffect(() => {
     const channel = new BroadcastChannel("orato_hdmi_sync");
     channel.onmessage = (event) => {
@@ -50,15 +50,14 @@ const [syncData, setSyncData] = useState(() => {
       );
 
       if (targetEl) {
-        // block: 'center' alinha a âncora no meio da tela (com a nossa linha-guia)
         targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
       } else {
-        // Fallback de segurança
         const blockEl = document.getElementById(
           `hdmi-block-${syncData.activeBlockIndex}`,
         );
-        if (blockEl)
+        if (blockEl) {
           blockEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       }
     }, 50);
 
@@ -156,6 +155,7 @@ const [syncData, setSyncData] = useState(() => {
         </div>
       </div>
 
+      {/* Linha-Guia dos Olhos */}
       <div className="fixed top-1/2 left-0 right-0 -translate-y-1/2 pointer-events-none z-20 flex items-center px-8">
         <div className="h-[2px] w-full bg-[#FACC15]/40 rounded-full shadow-[0_0_12px_rgba(250,204,21,0.5)]"></div>
         <span className="ml-4 px-3 py-1 rounded-xl bg-[#151821] border border-[#FACC15]/40 font-mono text-xs text-[#FACC15] font-bold uppercase tracking-widest whitespace-nowrap shadow-xl">
@@ -177,6 +177,26 @@ const [syncData, setSyncData] = useState(() => {
             </div>
           ) : (
             syncData.blocks.map((block, idx) => {
+              // RENDERIZAÇÃO DE RETRANCA NA 2ª TELA (ESTILO METADADOS SUTIL)
+              if (block.isRetranca) {
+                return (
+                  <div
+                    key={block.id}
+                    id={`hdmi-block-${idx}`}
+                    className="mb-10 py-3.5 px-6 rounded-2xl bg-[#12151D]/80 border border-[#282E3E]/70 max-w-3xl opacity-60 text-left"
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2.5 py-0.5 rounded bg-[#1F2432] text-[#94A3B8] font-mono text-xs font-bold uppercase tracking-widest border border-[#2D3546]">
+                        RETRANCA · NÃO LER NO AR
+                      </span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-mono font-bold text-[#94A3B8] uppercase tracking-wider">
+                      {block.text}
+                    </div>
+                  </div>
+                );
+              }
+
               const isActive = idx === syncData.activeBlockIndex;
               const isPast = idx < syncData.activeBlockIndex;
               const spokenWords = isActive

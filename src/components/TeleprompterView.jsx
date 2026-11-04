@@ -6,6 +6,10 @@ import {
   normalizeForMatch,
 } from "../utils/stringMatching";
 import {
+  parseScriptToBlocks,
+  getFirstReadableBlockIndex,
+} from "../utils/retrancaParser";
+import {
   Play,
   Pause,
   StopCircle,
@@ -25,13 +29,6 @@ import {
 
 const SILENCE_TIMEOUT_MS = 2000;
 
-const DEFAULT_LINES = [
-  "Senhoras e senhores, sejam bem-vindos à transmissão de lançamento da plataforma ORATO.",
-  "Neste momento demonstramos a tecnologia de teleprompter inteligente de última geração.",
-  "À medida que você fala, o sistema identifica cada palavra em tempo real e rola o texto automaticamente sem precisar de pedal ou operador manual.",
-  "Se você fizer uma pausa ou improvisar, o algoritmo aguarda pacientemente a sua retomada natural.",
-];
-
 export default function TeleprompterView({
   script = {},
   onEndPresentation,
@@ -39,12 +36,35 @@ export default function TeleprompterView({
 }) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [wpm, setWpm] = useState(140);
-  const [activeBlockIndex, setActiveBlockIndex] = useState(0);
-  const [activeWordIndex, setActiveWordIndex] = useState(0);
   const [latencyMs, setLatencyMs] = useState(12);
   const speechAccuracy = "99.8%";
   const [improviseState, setImproviseState] = useState(false);
   const [pauseReason, setPauseReason] = useState(null);
+
+  // ==========================================
+  // PREPARAÇÃO DOS BLOCOS DO ROTEIRO (COM SUPORTE A RETRANCA)
+  // ==========================================
+  const blocks = useMemo(() => {
+    return parseScriptToBlocks(script);
+  }, [script]);
+
+  const firstReadableIndex = useMemo(() => {
+    return getFirstReadableBlockIndex(blocks);
+  }, [blocks]);
+
+  // Inicia o cursor de leitura no primeiro bloco legível (nunca na retranca)
+  const [activeBlockIndex, setActiveBlockIndex] = useState(() => {
+    return getFirstReadableBlockIndex(parseScriptToBlocks(script));
+  });
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+
+  // Sincroniza índice inicial se o roteiro selecionado mudar (padrão React 19)
+  const [prevScriptId, setPrevScriptId] = useState(script?.id);
+  if (script?.id !== prevScriptId) {
+    setPrevScriptId(script?.id);
+    setActiveBlockIndex(getFirstReadableBlockIndex(blocks));
+    setActiveWordIndex(0);
+  }
 
   // ==========================================
   // SINCRONIZAÇÃO SOCKET.IO (EMISSOR / CONTROLE REMOTO)
@@ -54,7 +74,7 @@ export default function TeleprompterView({
   const { isConnected: isSocketConnected, sendCommand } = useTeleprompterSync({
     scriptId,
     sessionId,
-    role: "emitter", // <-- Agora o TeleprompterView é o Emissor (Chefe)
+    role: "emitter",
   });
 
   // Observa quando o Play/Pause muda e avisa a segunda tela.
@@ -83,25 +103,6 @@ export default function TeleprompterView({
     stopListening,
   } = useSpeech();
 
-  // ==========================================
-  // PREPARAÇÃO DOS BLOCOS DO ROTEIRO
-  // ==========================================
-  const blocks = useMemo(() => {
-    const rawLines = script.plainText
-      ? script.plainText.split(/\n+/).filter((line) => line.trim().length > 0)
-      : [];
-
-    const lines = rawLines.length > 0
-      ? rawLines.map((line) => line.trim())
-      : DEFAULT_LINES;
-
-    return lines.map((text, index) => ({
-      id: index,
-      text,
-      words: text.split(/\s+/).filter(Boolean),
-    }));
-  }, [script.plainText]);
-
   const scrollToActiveBlock = useCallback((blockIndex, smooth = true) => {
     if (!viewportRef.current) return;
 
@@ -125,7 +126,6 @@ export default function TeleprompterView({
   // ==========================================
   // PAUSA AUTOMÁTICA E RETOMADA DA ROLAGEM (RF13)
   // ==========================================
-  // Pausa a rolagem após dois segundos sem fala, mantendo o microfone ativo.
   useEffect(() => {
     if (
       !isListening ||
@@ -133,6 +133,11 @@ export default function TeleprompterView({
       manualPauseRef.current ||
       improviseState
     ) {
+      return undefined;
+    }
+
+    const currentBlock = blocks[activeBlockIndex];
+    if (currentBlock?.isRetranca) {
       return undefined;
     }
 
@@ -149,17 +154,17 @@ export default function TeleprompterView({
     }, remainingMs);
 
     return () => window.clearTimeout(timer);
-  }, [isListening, lastSpeechAt, listeningSince, improviseState]);
+  }, [isListening, lastSpeechAt, listeningSince, improviseState, activeBlockIndex, blocks]);
 
   // ==========================================
   // DETECÇÃO DE IMPROVISO E STATUS DE SINCRONIZAÇÃO
   // ==========================================
-  // Detecta se as palavras reconhecidas correspondem ao bloco atual.
+  // CRÍTICO: Blocos de Retranca são excluídos da comparação Jaccard.
   useEffect(() => {
     if (!isListening || !cleanTranscript || manualPauseRef.current) return;
 
     const currentBlock = blocks[activeBlockIndex];
-    if (!currentBlock) return;
+    if (!currentBlock || currentBlock.isRetranca) return;
 
     const recentTranscript = normalizeForMatch(cleanTranscript)
       .split(" ")
@@ -224,7 +229,7 @@ export default function TeleprompterView({
   // ==========================================
   // PROGRESSÃO DE LEITURA CADENCIADA (WPM)
   // ==========================================
-  // Avanço por cadência quando o microfone está desligado.
+  // Pula automaticamente blocos de retranca.
   useEffect(() => {
     if (!isPlaying || isListening) return undefined;
 
@@ -233,14 +238,35 @@ export default function TeleprompterView({
       const currentBlock = blocks[activeBlockIndex];
       if (!currentBlock) return;
 
+      if (currentBlock.isRetranca) {
+        let nextIdx = activeBlockIndex + 1;
+        while (nextIdx < blocks.length && blocks[nextIdx].isRetranca) {
+          nextIdx++;
+        }
+        if (nextIdx < blocks.length) {
+          setActiveBlockIndex(nextIdx);
+          setActiveWordIndex(0);
+        } else {
+          setIsPlaying(false);
+          setPauseReason("end");
+        }
+        return;
+      }
+
       if (activeWordIndex < currentBlock.words.length - 1) {
         setActiveWordIndex((previous) => previous + 1);
-      } else if (activeBlockIndex < blocks.length - 1) {
-        setActiveBlockIndex((previous) => previous + 1);
-        setActiveWordIndex(0);
       } else {
-        setIsPlaying(false);
-        setPauseReason("end");
+        let nextIdx = activeBlockIndex + 1;
+        while (nextIdx < blocks.length && blocks[nextIdx].isRetranca) {
+          nextIdx++;
+        }
+        if (nextIdx < blocks.length) {
+          setActiveBlockIndex(nextIdx);
+          setActiveWordIndex(0);
+        } else {
+          setIsPlaying(false);
+          setPauseReason("end");
+        }
       }
     }, intervalMs);
 
@@ -250,13 +276,12 @@ export default function TeleprompterView({
   // ==========================================
   // RASTREADOR VISUAL (WORD-BY-WORD SYNC)
   // ==========================================
-  // Atualiza o destaque pela fala. Continua procurando palavras durante pausa
-  // automática, mas respeita a pausa manual.
+  // CRÍTICO: Rastreamento nunca analisa ou avança palavras de Retranca.
   useEffect(() => {
     if (!isListening || !cleanTranscript || manualPauseRef.current) return;
 
     const currentBlock = blocks[activeBlockIndex];
-    if (!currentBlock) return;
+    if (!currentBlock || currentBlock.isRetranca) return;
 
     const spokenWords = normalizeForMatch(cleanTranscript)
       .split(" ")
@@ -280,8 +305,12 @@ export default function TeleprompterView({
 
     const timer = window.setTimeout(() => {
       if (newWordIndex >= currentBlock.words.length) {
-        if (activeBlockIndex < blocks.length - 1) {
-          setActiveBlockIndex((previous) => previous + 1);
+        let nextIdx = activeBlockIndex + 1;
+        while (nextIdx < blocks.length && blocks[nextIdx].isRetranca) {
+          nextIdx++;
+        }
+        if (nextIdx < blocks.length) {
+          setActiveBlockIndex(nextIdx);
           setActiveWordIndex(0);
         } else {
           setActiveWordIndex(currentBlock.words.length);
@@ -310,9 +339,7 @@ export default function TeleprompterView({
       isPlaying,
     };
 
-    // Envia os dados ao vivo pelo canal.
     channel.postMessage(payload);
-    // Guarda o estado atual para a nova aba carregar imediatamente.
     localStorage.setItem("orato_hdmi_initial_state", JSON.stringify(payload));
 
     return () => channel.close();
@@ -337,8 +364,12 @@ export default function TeleprompterView({
   };
 
   const skipToNextBlock = () => {
-    if (activeBlockIndex < blocks.length - 1) {
-      setActiveBlockIndex((previous) => previous + 1);
+    let nextIdx = activeBlockIndex + 1;
+    while (nextIdx < blocks.length && blocks[nextIdx].isRetranca) {
+      nextIdx++;
+    }
+    if (nextIdx < blocks.length) {
+      setActiveBlockIndex(nextIdx);
       setActiveWordIndex(0);
     }
   };
@@ -346,7 +377,7 @@ export default function TeleprompterView({
   const restartScript = () => {
     manualPauseRef.current = false;
     setPauseReason(null);
-    setActiveBlockIndex(0);
+    setActiveBlockIndex(firstReadableIndex);
     setActiveWordIndex(0);
     setIsPlaying(true);
     setImproviseState(false);
@@ -366,10 +397,12 @@ export default function TeleprompterView({
     }, 4000);
   };
 
-  const totalWords = blocks.reduce(
+  const readableBlocks = blocks.filter((b) => !b.isRetranca);
+  const totalWords = readableBlocks.reduce(
     (total, block) => total + block.words.length,
     0,
   );
+  const hasRetranca = blocks.some((b) => b.isRetranca);
 
   const statusLabel = improviseState
     ? "Improviso Detectado"
@@ -408,7 +441,8 @@ export default function TeleprompterView({
               </span>
               <span className="text-[10px] text-[#64748B]">·</span>
               <span className="text-[10px] text-[#94A3B8] font-mono">
-                {blocks.length} blocos · {totalWords} palavras
+                {readableBlocks.length} blocos de fala · {totalWords} palavras
+                {hasRetranca ? " · 1 Retranca" : ""}
               </span>
             </div>
 
@@ -567,6 +601,30 @@ export default function TeleprompterView({
         >
           <div className="flex flex-col gap-10 max-w-3xl mx-auto">
             {blocks.map((block, index) => {
+              // RENDERIZAÇÃO ESPECÍFICA DE RETRANCA (NÃO RASTREADA PELO STT)
+              if (block.isRetranca) {
+                return (
+                  <div
+                    key={block.id}
+                    id={`prompter-block-${index}`}
+                    className="select-none py-3.5 px-6 rounded-2xl bg-[#12151D]/90 border border-[#282E3E] max-w-3xl mx-auto w-full transition-all duration-300 opacity-60 hover:opacity-90 text-left shadow-lg"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#1F2432] text-[#94A3B8] font-mono text-[10px] font-bold uppercase tracking-wider border border-[#2D3546]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#94A3B8]" />
+                        RETRANCA · NÃO LER NO AR
+                      </span>
+                      <span className="text-[10px] text-[#64748B] font-mono uppercase tracking-wider">
+                        Metadados da Matéria
+                      </span>
+                    </div>
+                    <p className="text-base sm:text-lg font-mono font-bold tracking-wider text-[#94A3B8] uppercase">
+                      {block.text}
+                    </p>
+                  </div>
+                );
+              }
+
               const isPast = index < activeBlockIndex;
               const isActive = index === activeBlockIndex;
               const spokenWords = isActive
@@ -624,11 +682,13 @@ export default function TeleprompterView({
                       <>
                         {spokenWords.length > 0 && (
                           <span className="text-[#94A3B8]">
-                            {spokenWords.join(" ")} {" "}
+                            {spokenWords.join(" ")}{" "}
                           </span>
                         )}
                         {currentWord && (
-                          <span className="font-bold">{currentWord}</span>
+                          <span className="font-bold text-[#FACC15] underline decoration-[#FACC15]/40 decoration-2 underline-offset-4">
+                            {currentWord}
+                          </span>
                         )}
                         {remainingWords.length > 0 && (
                           <span className="text-[#FFFFFF] font-semibold">

@@ -284,7 +284,7 @@ export default function App() {
     try {
       const created = await createScriptApi({
         title: 'Novo Roteiro de Estúdio',
-        content: `<p class="mb-4"><strong>Insira aqui a fala de abertura do apresentador.</strong> O algoritmo do Orato Estúdio acompanhará a sua fala em tempo real.</p><p>Digite os parágrafos subsequentes com clareza. Use o botão de destaque para termos chave.</p>`,
+        content: `<p data-type="retranca" class="tiptap-paragraph tiptap-retranca-block">[01]CHAMADA-ABERTURA (estúdio)</p><p class="mb-4"><strong>Insira aqui a fala de abertura do apresentador.</strong> O algoritmo do Orato Estúdio acompanhará a sua fala em tempo real.</p><p>Digite os parágrafos subsequentes com clareza. Use o botão de destaque para termos chave.</p>`,
       });
       setScripts((prev) => [created, ...prev.filter((s) => s.id !== created.id)]);
       setActiveScript(created);
@@ -351,7 +351,7 @@ export default function App() {
             script={
               activeScript || {
                 title: 'Novo Roteiro de Estúdio',
-                content: `<p class="mb-4"><strong>Insira aqui a fala de abertura do apresentador.</strong> O algoritmo do Orato Estúdio acompanhará a sua fala em tempo real.</p><p>Digite os parágrafos subsequentes com clareza. Use o botão de destaque para termos chave.</p>`,
+                content: `<p data-type="retranca" class="tiptap-paragraph tiptap-retranca-block">[01]CHAMADA-ABERTURA (estúdio)</p><p class="mb-4"><strong>Insira aqui a fala de abertura do apresentador.</strong> O algoritmo do Orato Estúdio acompanhará a sua fala em tempo real.</p><p>Digite os parágrafos subsequentes com clareza. Use o botão de destaque para termos chave.</p>`,
                 isNew: true,
               }
             }

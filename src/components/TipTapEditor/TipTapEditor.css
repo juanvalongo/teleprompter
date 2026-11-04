@@ -23,6 +23,37 @@
   margin-bottom: 0;
 }
 
+/* Blocos de Retranca (Cabeçalho de Matéria Jornalística) */
+.tiptap-editor-wrapper .tiptap p.tiptap-retranca-block,
+.tiptap-editor-wrapper .tiptap p[data-type="retranca"] {
+  font-size: 0.875rem;
+  color: #94A3B8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background-color: rgba(24, 28, 38, 0.75);
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  border-left: 3px solid #EF4444;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  margin-top: 0.75rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+  line-height: 1.5;
+}
+
+.tiptap-editor-wrapper .tiptap p.tiptap-retranca-block::before,
+.tiptap-editor-wrapper .tiptap p[data-type="retranca"]::before {
+  content: "RETRANCA · NÃO LER NO AR";
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #EF4444;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.2rem;
+}
+
 .tiptap-editor-wrapper .tiptap h1 {
   font-size: 1.75rem;
   font-weight: 700;
